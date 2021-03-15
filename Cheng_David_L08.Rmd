@@ -1,0 +1,132 @@
+---
+title: "L08 Positioning"
+author: "Data Visualization (STAT 302)"
+date: "David Cheng"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+# Datasets
+
+We'll be using the `titanic.rda`, `Aus_athletes.rda`, and `cdc.txt` datasets.
+<br>
+
+```{r load-packages-data-seed, warning=FALSE, message=FALSE}
+# Load package(s)
+library(tidyverse)
+library(cowplot)
+# Load datasets
+load("data/titanic.rda")
+load("data/Aus_athletes.rda")
+cdc <- read_delim(file = here::here("data", "cdc.txt"), delim = "|") %>%
+  mutate(
+    genhlth = factor(
+      genhlth,
+      levels = c("excellent", "very good", "good", "fair", "poor"),
+      labels = c("Excellent", "Very Good", "Good", "Fair", "Poor")
+    ),
+    genhlth = fct_rev(genhlth),
+    gender = factor(
+      gender,
+      levels = c("f", "m"),
+      labels = c("Women", "Men")
+    ),
+    wgt_change = wtdesire - weight
+  )
+
+cdc <- cdc %>% as_tibble()
+
+# Set seed
+set.seed(8221984)
+
+# Selecting a random subset of size 1000
+cdc_small <- cdc %>% sample_n(1000)
+```
+<br>
+
+### Exercise 1
+
+```{r, echo=FALSE, message=FALSE, error=FALSE}
+titanic %>%
+  mutate(surv = ifelse(survived == 0, "died", "survived")) %>%
+  ggplot(aes(sex, fill = sex)) +
+  geom_bar() +
+  facet_grid(surv ~ class) +
+  scale_x_discrete(name = NULL) +
+  scale_fill_manual(values = c("#D55E00D0", "#0072B2D0"), guide = "none") +
+  theme_minimal()
+```
+
+<br>
+
+### Exercise 2
+```{r}
+# Get list of sports played by BOTH sexes
+both_sports <- Aus_athletes %>%
+  distinct(sex, sport) %>%
+  count(sport) %>%
+  filter(n == 2) %>%
+  pull(sport)
+
+# Process data
+athletes_dat <- Aus_athletes %>%
+  filter(sport %in% both_sports) %>%
+  mutate(sport = case_when(
+    sport == "track (400m)" ~ "track",
+    sport == "track (sprint)" ~ "track",
+    TRUE ~ sport
+  ))
+
+top_left <- ggplot(athletes_dat, aes(sex, fill = sex)) +
+  geom_bar() +
+  theme_minimal() +
+  scale_y_continuous("number", limits = c(0,95), expand = c(0,0)) +
+  scale_fill_manual(values = c("#D55E00D0", "#0072B2D0"), guide = FALSE) +
+  scale_x_discrete(NULL, labels = c("female", "male"))
+
+top_right <- ggplot(athletes_dat, aes(rcc, wcc, fill = sex)) +
+  geom_point(shape = 21, color = "white", size = 3) +
+  theme_minimal() +
+  labs(y = "WBC count", x = "RBC count") +
+  scale_fill_manual(values = c("#D55E00D0", "#0072B2D0"), guide = FALSE)
+
+bottom <- ggplot(athletes_dat, aes(sport, pcBfat, color = sex, fill = sex)) +
+  geom_boxplot(width = 0.5) +
+  scale_color_manual(NULL, values = c("#D55E00", "#0072B2"),
+                     labels = c("female     ", "male")) +
+  scale_fill_manual(values = c("#D55E0040", "#0072B240"), guide = FALSE) +
+  theme_minimal() +
+  theme(legend.justification = c(1, 1),
+        legend.position = c(1, 1),
+        legend.direction = "horizontal") +
+  guides(color = guide_legend(override.aes = list(color = NA,
+                                                  fill = c("#D55E00D0", "#0072B2D0")))) +
+  labs(x = "", y = "% body fat")
+
+top_row <- plot_grid(top_left, top_right, align = 'h', rel_widths = c(1, 1))
+plot_grid(top_row, bottom, ncol = 1)
+```
+<br>
+
+### Exercise 3
+```{r}
+df2 <- cdc_small %>% select(-gender)
+
+cdc_small %>% 
+  ggplot(aes(weight, wgt_change)) +
+  geom_point(data = df2, colour = "grey80", size = 2, show.legend = FALSE) +
+  geom_point(aes(colour = gender), size = 2, show.legend = FALSE) +
+  facet_grid(gender ~ genhlth) + 
+  theme_minimal() +
+  scale_x_continuous(
+    breaks = c(100, 200, 300),
+  ) +
+  scale_y_continuous(
+    breaks = c(-100, 0),
+  ) +
+  labs(x =  "Weight (lbs)", y = "Weight Loss/Gain in Pounds") +
+  scale_color_manual(values = c("Women" = "#D55E00D0", "Men" = "#0072B2D0"), guide = FALSE)
+```
+<br>
+

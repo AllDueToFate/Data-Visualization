@@ -1,0 +1,173 @@
+---
+title: "L10 Data Wrangling"
+author: "Data Visualization (STAT 302)"
+date: "David Cheng"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+  pdf_document:
+    toc: yes
+---
+
+# Datasets
+
+We'll be using the `mod_nba2014_15_advanced.txt` and `NU_admission_data.csv` datasets --- add both to the project's **data** subdirectory. The `codebook_mod_nba2014_15_advanced.txt` file supplies a quick description of the variables in the `mod_nba2014_15_advanced.txt` dataset --- suggest adding it to the **data** subdirectory as well. The `undergraduate-admissions-statistics.pdf` is the source for the `NU_admission_data.csv` dataset and it also contains the graphic/plot we will be attempting to re-create in the second exercise. 
+
+<br>
+
+```{r load-packages-data-seed, warning=FALSE, message=FALSE, echo = FALSE}
+# Load package(s)
+library(tidyverse)
+library(janitor)
+
+# Read in the datasets
+nba <- read_delim("mod_nba2014_15_advanced.txt", delim = "|") %>% 
+  clean_names()
+
+nu_admin_dat <- read_csv("NU_admission_data.csv") %>% 
+  clean_names()
+```
+
+<br>
+
+### Exercise 1
+```{r helper-function, echo = FALSE}
+quartile_rank <- function(x = 0:99) {
+  
+  # Set quartile
+  quart_breaks <- c(
+    -Inf,
+    quantile(x,
+      probs = c(.25, .5, .75),
+      na.rm = TRUE
+    ),
+    Inf
+  )
+
+  cut(x = x, breaks = quart_breaks, labels = FALSE)
+}
+```
+
+```{r, eval = FALSE, echo = FALSE}
+nba <- nba %>% 
+  filter(g > 10 & tm > 5) %>% 
+  mutate(ts_perc_quartile = quartile_rank(ts_perc),
+         usg_perc_quratile = quartile_rank(usg_perc),
+         dbpm_quartile = quartile_rank(dbpm),
+         trb_perc_quartile = quartile_rank(trb_perc),
+         ast_perc_quartile = quartile_rank(ast_perc))
+
+derrick_rose <- nba %>% 
+  filter(player == "Derrick Rose") %>% 
+  select(player, ts_perc_quartile, usg_perc_quratile, dbpm_quartile, trb_perc_quartile, ast_perc_quartile)
+
+
+derrick_rose <- derrick_rose %>% 
+  gather(key = metric, value = value, -player)
+
+ggplot(derrick_rose, aes(x = metric, y = value)) +
+  geom_col(width = 1, fill = "#f49fb1") +
+  geom_vline(xintercept = 0.5) +
+  geom_vline(xintercept = 1.5) +
+  geom_vline(xintercept = 2.5) +
+  geom_vline(xintercept = 3.5) +
+  geom_vline(xintercept = 4.5) +
+  geom_hline(yintercept = 1, linetype = "dotted") +
+  geom_hline(yintercept = 2, linetype = "dotted") +
+  geom_hline(yintercept = 3, linetype = "dotted") +
+  geom_hline(yintercept = 4, linetype = "dotted") +
+  coord_polar() +
+  labs(title = "Derrick Rose\n(2015)") +
+  theme(plot.title = element_text(size = 16, hjust = 0.5),
+        panel.background = element_rect(color = "grey"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank()) +
+  geom_text(x = c(0, 1, 2, 3, 4), y = c(4.75, 4.75, 4.75, 4.75, 4.75), label = c("ASSIST\nRATE","TRUE\nSHOOTING","USAGE\nRATE","DEFENSIVE\nBPM", "REBOUND\nRATE"), size = 5) +
+  annotate("text", x = c(3, 3, 3, 3), y = c(0.75, 1.75, 2.75, 3.75), label = c("1st-25th", "25th-50th", "50th-75th", "75th-99th"), size = 5)
+```
+![ ](/Users/david/Desktop/Stat 302/L10_data_wrangling/derrick_rose.png)
+
+<br>
+
+### Exercise 2
+Which approach do you find communicates the information better, their single plot or the two plot approach? Why?
+
+> I think the two plot approach communicates the information better. Because the single plot has 5 labels per year all on the same plot, there's a lot of numbers scattered all over the place. It feels like an overflow of information and makes it harder to read.  
+
+```{r, echo = FALSE}
+bar_dat <- nu_admin_dat %>% 
+  # fixing the bar chart heights so that it's cumulative
+  mutate(a = applications - admitted_students,
+         b = admitted_students - matriculants,
+         c = matriculants) %>% 
+  # selecting the relevant variables
+  select(year, a, b, c) %>% 
+  # turns the data into tidy format
+  gather(key = category, value = count, -year) %>% 
+  # arranges the data by year
+  arrange(year)
+
+bar_label <- nu_admin_dat %>% 
+  # changing the data so that it matches the bar_dat variable names
+  mutate(a = applications,
+         b = admitted_students,
+         c = matriculants) %>% 
+  # selecting the relevant variables
+  select(year, a, b ,c) %>% 
+  # turns the data into tidy format
+  gather(key = category, value = count, -year) %>% 
+  # creating a new variable that will be used as the label
+  mutate(col_label = prettyNum(count, big.mark = ","))
+
+rate_dat <- nu_admin_dat %>% 
+  # selecting the relevant variables
+  select(year, contains("_rate")) %>% 
+  # turns the data into tidy format
+  gather(key = rate_type, value = pct, -year) %>% 
+  # arranges the data by year
+  arrange(year)
+
+rate_label <- rate_dat %>%
+  # creates a pct label and if it's a yield rate add 2 percent, if its a admission_rate subtract 2 percent
+  mutate(pct_label = str_c(pct, "%"),
+         pct = case_when(rate_type == "yield_rate" ~ pct + 2,
+                         rate_type == "admission_rate" ~ pct - 2))
+
+bar_dat %>% 
+  ggplot(aes(x = year, y = count, fill = category)) +
+  geom_col() +
+  geom_text(data = bar_label, aes(label = col_label), vjust = 1.6, color = "white", size = 2.2) +
+  scale_fill_manual(values = c("a" = "#4f2a84", "b" = "#664C95", "c" = "#836DAA"), name = NULL, labels = c("Applications", "Admitted Students", "Matriculants")) +
+  scale_x_continuous(breaks = c(seq(1999, 2018, 1))) +
+  scale_y_continuous(breaks = c(seq(0, 50000, 5000))) +
+  labs(title = "Northwestern University\nUndergraduate Admissions 1999-2018", x = "Entering Year", y = "Applications") +
+  theme(plot.title = element_text(color = "#4E2A84", face = "bold", margin = margin(t = 10, l = 5, b = 5)),
+        plot.background = element_rect(fill = "white", colour = "#4E2A84", size = 3),
+        axis.text = element_text(colour = "#4E2A84"),
+        axis.title = element_text(colour = "#4E2A84", face = "bold"),
+        axis.ticks.length = unit(0, "cm"),
+        legend.position = "top") 
+
+rate_dat %>% 
+  ggplot(aes(x = year, y = pct, color = rate_type)) +
+  geom_line() +
+  geom_point() +
+  geom_text(data = rate_label, aes(label = pct_label), vjust = 0.7, color = "black", size = 2.2) +
+  labs(title = "Northwestern University\nUndergraduate Admissions 1999-2018", x = "Entering Year", y = "Rate") +
+  scale_color_manual(values = c("admission_rate" = "#ccc4de", "yield_rate" = "#4f2a84"), name = NULL, labels = c("Admission Rate", "Yield Rate")) +
+  scale_shape_manual(values = c("admission_rate" = 8, "yield_rate" = 15)) +
+  scale_x_continuous(breaks = c(seq(1999, 2018, 1))) + 
+  scale_y_continuous(breaks = c(seq(0, 60, 10))) +
+  theme(plot.title = element_text(color = "#4E2A84", face = "bold", margin = margin(t = 10, l = 5, b = 5)),
+        plot.background = element_rect(fill = "white", colour = "#4E2A84", size = 3),
+        axis.text = element_text(colour = "#4E2A84"),
+        axis.title = element_text(colour = "#4E2A84", face = "bold"),
+        axis.ticks.length = unit(0, "cm"),
+        legend.position = "top")
+```
+
+<br>

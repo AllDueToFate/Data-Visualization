@@ -1,0 +1,109 @@
+---
+title: "L06 Layers"
+author: "Data Visualization (STAT 302)"
+date: "David Cheng"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+# Datasets
+
+We'll be using data from the `cows.rda`, `cdc.txt`, and the `tech_stocks.rda` datasets which are already in the `/data` subdirectory in our **data_vis_labs** project. We will also be using the `mpg` dataset which comes packaged with `ggplot2` --- use `?ggplot2::mpg` to access its codebook.
+
+```{r load-packages-data-seed, warning=FALSE, message=FALSE}
+# Load package(s)
+library(tidyverse)
+# Load datasets
+load("data/cows.rda")
+load("data/tech_stocks.rda")
+# Read in the cdc dataset
+cdc <- read_delim(file = "data/cdc.txt", delim = "|") %>%
+  mutate(genhlth = factor(genhlth,
+    levels = c("excellent", "very good", "good", "fair", "poor")
+  ))
+
+set.seed(9876)
+```
+
+### Exercise 1
+```{r class_dat}
+# Additional dataset for plot
+class_dat <- mpg %>%
+  group_by(class) %>%
+  summarise(n = n(), 
+            hwy = mean(hwy),
+            label = str_c("n = ", n, sep = ""))
+
+ggplot(mpg, aes(x = class, y = hwy)) +
+  geom_point(position = position_jitter(width = 0.1)) + 
+  geom_point(data = class_dat, size = 5, alpha = 0.6, color = "red") +
+  geom_text(data = class_dat, aes(y = 10, label = label)) +
+  ylim(c(10, 45)) +
+  labs(x = "Vehicle class", y = "Highway miles per gallon") +
+  theme_minimal()
+```
+
+<br>
+
+### Exercise 2
+```{r canadian-cows}
+# Graphic dataset
+cow_means <- cows %>% 
+  filter(breed != "Canadian") %>%
+  group_by(breed) %>%
+  summarize(
+    mean = mean(butterfat),
+    se = sd(butterfat)/sqrt(n())
+  ) %>%
+  mutate(breed = fct_reorder(factor(breed), desc(mean)))
+
+cow_means %>% 
+  ggplot(aes(x = breed, y = mean)) +
+  geom_col(fill = "#56B4E9", width = 0.7) +
+  geom_errorbar(aes(ymin = mean - 1.96*se, ymax = mean + 1.96*se), width = 0.1) +
+  labs(x = "Cattle breed", y = "Mean percent butterfat\ncontent in milk") +
+  theme_minimal()
+```
+
+<br>
+
+### Exercise 3
+```{r percent-increase}
+# percentage increase data
+perc_increase <- tech_stocks %>% 
+  ungroup(ticker) %>% 
+  arrange(desc(date)) %>% 
+  distinct(company, .keep_all = TRUE) %>% 
+  mutate(perc = 100 * (price - index_price) / index_price,
+         label = str_c(round(perc), "%", sep=""),
+         company = fct_reorder(factor(company), perc))
+
+perc_increase %>% 
+  ggplot(aes(x = company, y = perc)) +
+  geom_col(fill = "#56B4E9") +
+  geom_text(aes(label = label), nudge_y = -25, size = 5, color = "white") +
+  coord_flip() + 
+  labs(x = "", y = "") +
+  theme_minimal()
+```
+
+<br>
+
+### Exercise 4
+```{r}
+# 95% CI for weight for genhlth, gender groups
+cdc_weight_95ci <- cdc %>% 
+  group_by(genhlth, gender) %>% 
+  summarise(mean_wt = mean(weight),
+            se = sd(weight) / sqrt(n()),
+            moe = qt(0.975, n() - 1) * se)
+
+cdc_weight_95ci %>% 
+  ggplot(aes(gender, mean_wt, color = genhlth)) +
+  geom_errorbar(aes(ymin =  mean_wt - moe, ymax = mean_wt + moe), width = 0.1, position = position_dodge(width = 0.5)) +
+  geom_point(position = position_dodge(width = 0.5)) +
+  coord_flip() +
+  labs(x = "Gender", y = "Weight (lb)", color = "General health\n(self reported)") +
+  theme_minimal()
+```

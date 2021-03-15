@@ -1,0 +1,180 @@
+---
+title: "L04 ggplot II"
+author: "Data Visualization (STAT 302)"
+date: "April 11, 2019"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+# Overview
+
+The goal of this lab is to continue the process of unlocking the power of `ggplot2` through constructing and experimenting with a few basic plots.
+
+# Datasets
+
+We'll be using data from the `blue_jays.rda`, `tech_stocks.rda`, `corruption.rda`, and `cdc.txt` datasets which are already in the `/data` subdirectory in our **data_vis_labs** project. 
+
+```{r load-packages, warning=FALSE, message=FALSE}
+# Load package(s)
+library(tidyverse)
+library(ggrepel)
+# Load datasets
+load("data/blue_jays.rda")
+load("data/tech_stocks.rda")
+load("data/corruption.rda")
+# Read in the cdc dataset
+cdc <- read_delim(file = "data/cdc.txt", delim = "|") %>%
+  mutate(genhlth = factor(genhlth,
+    levels = c("excellent", "very good", "good", "fair", "poor")
+  ))
+```
+
+# Exercises
+
+Complete the following exercises.
+
+<br>
+
+### Exercise 1
+
+```{r}
+yrng <- blue_jays %>% pull(Head) %>% range()
+xrng <- blue_jays %>% pull(Mass) %>% range()
+caption <- "Head length vs body mass in 123 blue jays"
+
+blue_jays_text <- blue_jays %>% 
+  slice(8, 26)
+
+blue_jays %>% 
+  ggplot(aes(Mass, Head)) +
+    geom_point(aes(color = KnownSex),size = 2, alpha = 0.6, show.legend = FALSE) +
+    geom_text(data = blue_jays_text, aes(label = KnownSex, color = KnownSex), nudge_x = 0.75, show.legend = FALSE) +
+    xlab("Body mass in (g)") +
+    ylab("Head length (mm)") +
+    annotate(geom = "text", x = xrng[1], y = yrng[2], label = caption,
+             hjust = 0, vjust = 1, size = 4)
+```
+<br>
+
+### Exercise 2
+
+Using `tech_stocks` dataset, recreate the following graphics as precisely as possible. *Hint:* Used `close`.
+
+<br>
+
+##### Plot 1
+```{r}
+last_point <- tech_stocks %>% 
+  filter(date == "2017-06-02")
+  
+yrng <- tech_stocks %>% pull(price_indexed) %>% range()
+xrng <- tech_stocks %>% pull(date) %>% range()
+caption <- "Stock prices over time for four major tech companies"
+  
+tech_stocks %>% 
+  ggplot(aes(x = date, y = price_indexed)) +
+  geom_line(aes(color = company), show.legend = FALSE) +
+  geom_text(data = last_point, aes(label = company), show.legend = FALSE) +
+  ylab("Stock price, indexed") +
+  xlab("") +
+  annotate(geom = "text", x = xrng[1], y = yrng[2], label = caption, family = "serif", hjust = 0, vjust = 1, size = 4)
+
+```
+<br>
+
+##### Plot 2
+
+*Hints:*
+
+- Package `ggrepel`
+- `box.padding` is 0.6
+- Minimum segment lent is 0 
+- Horizontal justification is to the right
+```{r}
+set.seed(9876)
+tech_stocks %>% 
+  ggplot(aes(x = date, y = price_indexed, label = company)) +
+  geom_line(aes(color = company), show.legend = FALSE) +
+  geom_text_repel(data = last_point, show.legend = FALSE,
+                  box.padding = 0.6,
+                  min.segment.length = 0,
+                  hjust = 1) +
+  ylab("Stock price, indexed") +
+  xlab("") +
+  annotate(geom = "text", x = xrng[1], y = yrng[2], label = caption, family = "serif", hjust = 0, vjust = 1, size = 4)
+```
+
+<br>
+
+### Exercise 3
+
+Using `corruption.rda` dataset, recreate the following graphic as precisely as possible.
+
+*Hints:*
+
+- Transparency is 0.6
+- Only use 2015 data
+- Color used is `grey60`
+- Package `ggrepel`
+- `box.padding` is 0.6
+- Minimum segment lent is 0 
+```{r}
+corruption_plot <- corruption %>% 
+  filter(year == 2015) %>% 
+  na.omit()
+
+set.seed(9876)
+
+countries <- corruption_plot %>% 
+  slice(7, 17, 19, 23, 60, 69, 82, 87, 141)
+
+corruption_plot %>% 
+  ggplot(aes(cpi, hdi, label = country)) +
+    geom_point(aes(color = region), alpha = 0.6) +
+    geom_smooth(method = lm, formula = "y ~ log(x)", se = FALSE, color = "grey60") +
+    geom_text_repel(data = countries, show.legend = FALSE,
+                  box.padding = 0.6,
+                  min.segment.length = 0,
+                  hjust = "right") +
+    labs(x = "Corruption Perception Index, 2015 (100 = least corrupt)",
+         y = "Human Development Index, 2015\n(1.0 = most developed)",
+         title = "Corruption and Human Development (2015)")
+```
+
+
+<br>
+
+### Exercise 4
+
+Using `cdc` dataset, recreate the described graphic as precisely as possible.
+
+Using Bilbo Baggins' responses below to the CDC BRSFF questions, add Bilbo's data point as a solid red circle of size 5 to a scatterplot of `weight` by `height` with transparent solid blue circles of size 3 as the plotting characters. In addition, label the point with his name in red. (Hint: default shape is a solid circle)
+
+* `genhlth` - How would you rate your general health? **fair**
+* `exerany` - Have you exercised in the past month? **1=yes**
+* `hlthplan` - Do you have some form of health coverage? **0=no**
+* `smoke100` - Have you smoked at least 100 cigarettes in your life time? **1=yes** 
+* `height` -  height in inches: **46**
+* `weight` - weight in pounds: **120**
+* `wtdesire` - weight desired in pounds: **120**
+* `age` - in years: **45**
+* `gender` - m for males and f for females: **m**
+
+```{r}
+bilbo <- tibble(genhlth = "fair", exerany = 1, hlthplan = 0, smoke100 = 1, height = 46, weight = 120,
+                   wtdesire = 120, age = 45, gender = "m")
+
+cdc %>% 
+  ggplot(aes(height, weight)) +
+    geom_point(alpha = 0.1, size = 3, color = "blue") +
+    ylab("Weight (lbs)") +
+    xlab("Height (in)") +
+    geom_point(data = bilbo, alpha = 0.4, size = 5, color = "red") +
+    geom_text(data = bilbo, aes(label = "Bilbo Baggins"), color = "red", angle = 90, hjust = -0.1)
+```
+
+<br><br>
+
+

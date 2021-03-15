@@ -1,0 +1,145 @@
+---
+title: "L5 Toolbox"
+author: "Data Visualization (STAT 302)"
+date: "David Cheng"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+# Overview
+
+The goal of this lab is to explore more useful plots in `ggplot2`. Specfically we will be focusing on surface plots and geospatial plots (maps).
+
+# Datasets
+
+We'll be using data from the `blue_jays.rda`, `cdc.txt`, and the `US_income.rda` datasets which are already in the `/data` subdirectory in our **data_vis_labs** project. 
+
+```{r, message = FALSE}
+# Load package(s)
+library(tidyverse)
+library(purrr)
+library(viridis)
+library(statebins)
+library(sf)
+# Load datasets
+load("data/blue_jays.rda")
+load("data/US_income.rda")
+
+# Read in the cdc dataset
+cdc <- read_delim(file = "data/cdc.txt", delim = "|") %>%
+  mutate(genhlth = factor(genhlth,
+    levels = c("excellent", "very good", "good", "fair", "poor")
+  ))
+```
+
+### Exercise 1
+
+Using `blue_jays.rda` dataset, recreate the following graphic as precisely as possible.
+
+*Hints:*
+
+- `geom_density_2d()` or `stat_density_2d()`
+- Transparency is 1/3
+- Horizontal lower limit is 57 and upper limit is 82
+- Point size 1.5
+- Line size is 0.4
+- `binwidth` set to 0.004
+- Minimal theme
+```{r}
+blue_jays %>% 
+  ggplot(aes(Mass, Head)) +
+  geom_point(size = 1.5, alpha = 1/3) +
+  xlim(c(57, 82)) +
+  # stat_density_2d() +
+  geom_density_2d(size = 0.4, color = "black", binwidth = 0.004) +
+  theme_minimal() +
+  labs(x = "Body mass (g)", y = "Head length (mm)")
+```
+<br>
+
+### Exercise 2
+
+Using `cdc` dataset, recreate the following graphics as precisely as possible.
+
+##### Plot 1
+```{r}
+cdc %>% 
+  ggplot(aes(height, weight)) +
+  geom_hex(bins = 35) + 
+  labs(x = "Height (in)", y = "Weight (lbs)")
+```
+
+<br>
+
+##### Plot 2
+```{r}
+cdc %>% 
+  ggplot(aes(height, weight)) +
+  stat_density_2d(aes(colour = ..level.., fill = ..level..), geom = "polygon", show.legend = FALSE) +
+  facet_wrap(~ gender) +
+  theme_minimal() + 
+  labs(x = "Height (in)", y = "Weight (lbs)")
+```
+<br>
+
+### Exercise 3
+```{r, message = FALSE}
+il_counties <- map_data("county", "illinois") %>%
+  select(lon = long, lat, group, id = subregion)
+
+ggplot(il_counties, aes(lon, lat)) +
+  geom_polygon(aes(group = group), fill = NA, colour = "grey50") + 
+  coord_quickmap() +
+  theme_void() +
+  labs(title = "Illinois")
+```
+<br>
+
+### Exercise 4
+
+Using `US_income` dataset, recreate the following graphics as precisely as possible.
+
+<br>
+
+```{r}
+# Setting income levels
+US_income <- mutate(
+  US_income,
+  income_bins = cut(
+    ifelse(is.na(median_income), 25000, median_income),
+    breaks = c(0, 40000, 50000, 60000, 70000, 80000),
+    labels = c("< $40k", "$40k to $50k", "$50k to $60k", "$60k to $70k", "> $70k"),
+    right = FALSE
+  )
+)
+```
+
+<br>
+
+
+##### Plot 1
+```{r}
+US_income %>% 
+  ggplot(aes(geometry = geometry, fill = income_bins)) +
+  geom_sf(size = 0.2, color = "grey80") +
+  scale_fill_viridis(discrete = TRUE) +
+  labs(fill = "Median\nIncome") +
+  theme_void() +
+  coord_sf(datum = NA)
+```
+<br>
+
+##### Plot 2
+```{r}
+US_income %>% 
+  ggplot(aes(state = name, fill = income_bins)) +
+  geom_statebins() +
+  scale_fill_viridis(discrete = TRUE) +
+  labs(fill = "Median\nIncome") +
+  theme_statebins() 
+```
+<br>
+
+

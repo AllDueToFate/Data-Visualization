@@ -1,0 +1,95 @@
+---
+title: "L07 Scales, Axes & Legends"
+author: "Data Visualization (STAT 302)"
+date: "David Cheng"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+# Datasets
+We'll be using the `tech_stocks.rda`, `cdc.txt`, and a few toy datasets.
+<br>
+
+```{r load-packages-data-seed, warning=FALSE, message=FALSE}
+# Load package(s)
+library(tidyverse)
+library(scales)
+# Load datasets
+load("data/tech_stocks.rda")
+# Read in the cdc dataset
+cdc <- read_delim(file = "data/cdc.txt", delim = "|") %>%
+  mutate(genhlth = factor(genhlth,
+                          levels = c("excellent", "very good", "good", "fair", "poor"),
+                          labels = c("Excellent", "Very Good", "Good", "Fair", "Poor")
+  ))
+
+# Set seed
+set.seed(8221984)
+
+# Selecting a random subset of size 100
+cdc_small <- cdc %>% sample_n(100)
+
+# Generating toy datasets for exercise 2
+dat1 <- tibble(theta = c(0, 2 * pi))
+
+dat2 <- tibble(
+  theta = seq(0, 2 * pi, length.out = 100),
+  obs = rnorm(100, sin(theta), 0.1),
+  larger_than = ifelse(abs(obs) < abs(sin(theta)), "1", "0")
+)
+```
+<br>
+
+### Exercise 1
+```{r, warning = FALSE, message = FALSE}
+tech_stocks <- tech_stocks %>% 
+  mutate(company = factor(company,
+                          levels = c("Facebook", "Alphabet", "Microsoft", "Apple")
+                          ))
+tech_stocks %>% 
+  ggplot(aes(x = date, y = price_indexed)) +
+  geom_line(aes(color = company)) +
+  theme_minimal() +
+  theme(legend.position = c(0.75, 0.85), legend.title = element_blank(),
+        axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  scale_x_date(date_breaks = "2 years", date_labels = "%Y", expand = c(0,0)) +
+  scale_y_continuous(labels = dollar, position = "right", breaks = c(0, 100, 200, 300, 400, 500)) +
+  guides(colour = guide_legend(override.aes = list(size = 1.3)))
+```
+
+### Exercise 2
+```{r, warning = FALSE, message = FALSE}
+ggplot(dat2, aes(theta, obs, color = larger_than)) +
+  geom_point(size = 2, alpha = 0.8, show.legend = FALSE) +
+  geom_smooth(se = FALSE, size = 1.3, color = "#56B4E9") +
+  scale_color_manual(values = c("0" = "darkgreen", "1" = "red"), guide = FALSE) +
+  theme_minimal() +
+  labs(x = "θ", y = "sin(θ)")
+```
+
+### Exercise 3
+```{r, warning = FALSE, message = FALSE}
+cdc_small %>%
+  ggplot(aes(height, weight, color = genhlth, shape = genhlth)) +
+  geom_point(size = 3) +
+  scale_color_brewer(palette = "Set1") +
+  labs(title = "CDC BRFSS: Weight by Height", x = NULL, y = NULL, color = "General\nHealth?", shape = "General\nHealth?") +
+  theme_minimal() +
+  theme(legend.position = c(1, 0), legend.justification = c(1, 0)) +
+  scale_shape_manual(values = c("Excellent" = 17, "Very Good" = 19, "Good" = 15, "Fair" = 9, "Poor" = 4)) +
+  scale_x_continuous(
+    limits = c(55, 80),
+    breaks = c(55, 60, 65, 70, 75, 80),
+    labels = c("55 in", "60 in", "65 in", "70 in", "75 in", "80 in")
+  ) +
+  scale_y_continuous(
+    limits = c(100, 300),
+    breaks = c(100, 125, 150, 175, 200, 225, 250, 275, 300),
+    labels = c(
+      "100 lbs", "125 lbs", "150 lbs", "175 lbs", "200 lbs",
+      "225 lbs", "250 lbs", "275 lbs", "300 lbs"
+    )
+  )
+```
+

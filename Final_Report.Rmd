@@ -1,0 +1,201 @@
+---
+title: "League of Legends Ranked Data"
+author: "David Cheng"
+date: "6/9/2019"
+output: html_document
+---
+
+```{r, include = FALSE}
+library(tidyverse)
+library(readxl)
+library(png)
+library(grid)
+library(ggrepel)
+```
+
+```{r, include = FALSE}
+champs <- read_csv("data/processed/champs.csv")
+participants <- read_csv("data/processed/participants.csv")
+stats <- read_csv("data/processed/stats.csv")
+```
+
+```{r echo = FALSE, results = 'hide', message= FALSE}
+# Win rates. This is stored because joining another table with win rates saves a lot of code rather than remaking it
+win_rate <- participants %>% 
+  # Joining the required tables
+  inner_join(stats) %>% 
+  inner_join(champs, by = c("championid" = "id")) %>% 
+  # Selecting the relevant variables to make it more readable
+  select(name, win) %>% 
+  # Counting the number instances a champion wins and loses a game
+  count(name, win) %>%
+  # Group them by champion and calculate the win rate with 2 decimal places
+  group_by(name) %>% 
+  mutate(win_rate = round(n/sum(n), digits = 2)) %>% 
+  # Now it should have the champion name and win = 1 and win = 0. Win = 1 is the win rate and win = 0 is the "lose rate". We want win = 1 for the win rate so we filter for that condition.
+  filter(win == 1) %>% 
+  # Selecting the important columns and storing it
+  select(name, win_rate)
+
+# Highest win rates
+highest_win_rate <- win_rate %>% 
+  # Arrange by descending and limiting it to 10 rows gives us the top 10 win rates
+  arrange(desc(win_rate)) %>% 
+  head(10) %>% 
+  # Plotting the champion name and win rate
+  ggplot(mapping = (aes(x = reorder(name,-win_rate), y = win_rate, color = name, fill = name))) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  geom_text(aes(label = win_rate*100), vjust = -0.5) +
+  theme_minimal() +
+  # Adds numbers to the graph and shifts it up
+  scale_y_continuous(
+    name = "Win Rate",
+    limits = c(0, .6),
+    breaks = c(seq(0, .6, .05)),
+    labels = scales::percent
+  ) +
+  coord_cartesian(ylim=c(.5, .6)) +
+  labs(x = "Champions", title = "Top 10 Champions with the Highest Win Rates") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none",
+        plot.title = element_text(face = "bold")) 
+
+Ahri <- readPNG(source = "data/Ahri.png")
+Ahri <- rasterGrob(image = Ahri)
+
+Anivia <- readPNG(source = "data/Anivia.png")
+Anivia <- rasterGrob(image = Anivia)
+
+Xerath <- readPNG(source = "data/Xerath.png")
+Xerath <- rasterGrob(image = Xerath)
+
+Ivern <- readPNG(source = "data/Ivern.png")
+Ivern <- rasterGrob(image = Ivern)
+
+Janna <- readPNG(source = "data/Janna.png")
+Janna  <- rasterGrob(image = Janna)
+
+Skarner <- readPNG(source = "data/Skarner.png")
+Skarner <- rasterGrob(image = Skarner)
+
+Sona <- readPNG(source = "data/Sona.png")
+Sona <- rasterGrob(image = Sona)
+
+Amumu <- readPNG(source = "data/Amumu.png")
+Amumu <- rasterGrob(image = Amumu)
+
+Annie <- readPNG(source = "data/Annie.png")
+Annie <- rasterGrob(image = Annie)
+
+Blitzcrank <- readPNG(source = "data/Blitzcrank.png")
+Blitzcrank <- rasterGrob(image = Blitzcrank)
+
+highest_win_rate +
+  annotation_custom(grob = Ivern, xmin = 0, xmax = 2, ymin = .565, ymax = .578) +
+  annotation_custom(grob = Anivia, xmin = 1, xmax = 3, ymin = .545, ymax = .558) +
+  annotation_custom(grob = Xerath, xmin = 2, xmax = 4, ymin = .545, ymax = .558) +
+  annotation_custom(grob = Ahri, xmin = 3, xmax = 5, ymin = .535, ymax = .548) +
+  annotation_custom(grob = Janna, xmin = 4, xmax = 6, ymin = .535, ymax = .548) +
+  annotation_custom(grob = Skarner, xmin = 5, xmax = 7, ymin = .535, ymax = .548) +
+  annotation_custom(grob = Sona, xmin = 6, xmax = 8, ymin = .535, ymax = .548) + 
+  annotation_custom(grob = Amumu, xmin = 7, xmax = 9, ymin = .525, ymax = .538) +
+  annotation_custom(grob = Annie, xmin = 8, xmax = 10, ymin = .525, ymax = .538) + 
+  annotation_custom(grob = Blitzcrank, xmin = 9, xmax = 11, ymin = .525, ymax = .538) 
+```
+
+```{r echo = FALSE, results = 'hide', message= FALSE}
+# Most popular champions
+game_count <- participants %>% 
+  # Joining relevant tables
+  inner_join(stats) %>% 
+  inner_join(champs, by = c("championid" = "id")) %>% 
+  # Counting the number of games a champion is played
+  select(name) %>% 
+  count(name) %>%  
+  arrange(desc(n))
+
+games_played <- game_count %>%
+  head(10) %>% 
+  ggplot(mapping = (aes(x = reorder(name, -n), y = n, color = name, fill = name))) +
+    geom_bar(stat = "identity") + 
+    # Adds numbers to the graph and shifts it up
+    geom_text(aes(label = n), nudge_y = 1200) +  
+    theme_minimal() +
+    labs(x = "Champions", y = "Number of Games Played", title = "Top 10 Most Popular Champions") +
+    coord_cartesian(ylim=c(20000, 65000)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "none",
+          plot.title = element_text(face = "bold")) 
+
+Lee_Sin <- readPNG(source = "data/Lee_Sin.png")
+Lee_Sin <- rasterGrob(image = Lee_Sin)
+
+Caitlyn <- readPNG(source = "data/Caitlyn.png")
+Caitlyn <- rasterGrob(image = Caitlyn)
+
+Lucian <- readPNG(source = "data/Lucian.png")
+Lucian <- rasterGrob(image = Lucian)
+
+Thresh <- readPNG(source = "data/Thresh.png")
+Thresh <- rasterGrob(image = Thresh)
+
+Vayne <- readPNG(source = "data/Vayne.png")
+Vayne <- rasterGrob(image = Vayne)
+
+Yasuo <- readPNG(source = "data/Yasuo.png")
+Yasuo <- rasterGrob(image = Yasuo)
+
+Xayah <- readPNG(source = "data/Xayah.png")
+Xayah <- rasterGrob(image = Xayah)
+
+Orianna <- readPNG(source = "data/Orianna.png")
+Orianna <- rasterGrob(image = Orianna)
+
+Ezreal <- readPNG(source = "data/Ezreal.png")
+Ezreal <- rasterGrob(image = Ezreal)
+
+games_played +
+  annotation_custom(grob = Lee_Sin, xmin = 0, xmax = 2, ymin = 61500, ymax = 66500) +
+  annotation_custom(grob = Caitlyn, xmin = 1, xmax = 3, ymin = 59500, ymax = 64500) +
+  annotation_custom(grob = Lucian, xmin = 2, xmax = 4, ymin = 59000, ymax = 64000) +
+  annotation_custom(grob = Thresh, xmin = 3, xmax = 5, ymin = 51200, ymax = 56200) +
+  annotation_custom(grob = Ahri, xmin = 4, xmax = 6, ymin = 39500, ymax = 44500) +
+  annotation_custom(grob = Vayne, xmin = 5, xmax = 7, ymin = 37500, ymax = 42500) +
+  annotation_custom(grob = Yasuo, xmin = 6, xmax = 8, ymin = 32500, ymax = 37500) + 
+  annotation_custom(grob = Xayah, xmin = 7, xmax = 9, ymin = 31000, ymax = 36000) +
+  annotation_custom(grob = Orianna, xmin = 8, xmax = 10, ymin = 30800, ymax = 35800) + 
+  annotation_custom(grob = Ezreal, xmin = 9, xmax = 11, ymin = 30800, ymax = 35800) 
+```
+
+```{r echo = FALSE, results = 'hide', message= FALSE}
+champion_highlight <- c(
+  "Ivern", "Ahri", "Lee Sin", "Urgot", "Ryze"
+)
+
+games_played_win_rate <- win_rate %>% 
+  inner_join(game_count)
+
+label_info <- games_played_win_rate %>% 
+  filter(name %in% champion_highlight)
+  
+games_played_win_rate %>% 
+  ggplot(aes(x = n, y = win_rate)) +
+  geom_point(aes(color = name), show.legend = FALSE) +
+  geom_smooth(method = "lm", se = FALSE, show.legend = FALSE, color = "black") +
+  theme_minimal() +
+  labs(x = "Number of Games Played", y = "Win Rate", title = "Win Rate Vs Number of Games Played") +
+  theme(plot.title = element_text(face = "bold")) +
+  geom_text_repel(
+    data = label_info,
+    aes(label = name),
+    box.padding = 0.6,
+    min.segment.length = 0
+  )
+```
+
+
+
+### Formal Citation
+
+Campanelli, Paolo. (2018). "League of Legends Ranked Matches". Kaggle. Available online: https://www.kaggle.com/paololol/league-of-legends-ranked-matches
+

@@ -1,0 +1,164 @@
+---
+title: "L01 Introduction"
+author: "David Cheng"
+date: "April 2, 2019"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r load-packages, warning=FALSE, message=FALSE}
+# Load package(s) - We will do this together 
+library(tidyverse)
+library(ggstance)
+library(skimr)
+library(janitor)
+```
+
+# Dataset
+
+We'll be using data from the [**lego** package](https://github.com/seankross/lego) which is already in the `/data` subdirectory, along with many other processed datasets, as part of the zipped folder for this lab. 
+
+### Task 1
+Download and install [R Software](https://cran.rstudio.com/).
+<br><br>
+**Completed**
+
+<br>
+
+### Task 2
+1. Download and install [RStudio](https://www.rstudio.com/products/rstudio/download4/).
+2. Open RStudio and ensure it and R have been properly installed. 
+3. Go to **Tools** > **Global Options** and change the two indicated settings below and click **Apply**. --- See L01_introduction.html.
+<br><br>
+**Completed**
+
+<br>
+
+### Task 3
+Install the following packages:
+
+- `tidyverse`
+- `ggstance`
+- `skimr`
+<br><br>
+**Completed**
+
+<br>
+
+### Task 4
+
+1. Download `data_vis_labs.zip` from Canvas. 
+2. Unzip the file and place the unzipped `data_vis_labs` directory where you would like to keep all of your lab work for this course.
+3. Open RStudio and create a project folder for this *exsisting directory*.  
+4. Appropriately rename `template_L01.Rmd` for submission (e.g. *Kuper_Arend_L01.Rmd*).
+5. Compile the *_L01.Rmd file with Cmd/Ctrl + Shift + K.
+<br><br>
+**Completed**
+
+
+<br>
+
+### Task 5 
+Optional: It is always handy to have a versatile text editor and I would suggest downloading [Sublime Text](https://www.sublimetext.com/). It is free to use.
+<br><br>
+**Completed**
+<br>
+
+# Exercise 1
+
+### Inspect the data
+The **lego** package provides a helpful dataset some interesting variables. Let's take a quick look at the data.
+```{r}
+load(file = "data/legosets.rda")
+
+legosets <- legosets %>% 
+  clean_names()
+
+skim_with(numeric = list(hist = NULL),
+          integer = list(hist = NULL))
+
+legosets %>% 
+  skim()
+```
+
+### Price per year
+First, let's look at the average cost of LEGO sets over time. The main variable of interest here is `USD_MSRP`, or the manufacturer's suggested retail price in constant dollars (i.e. not adjusted for inflation).
+```{r}
+avg_price_per_year <- legosets %>% 
+  filter(!is.na(usd_msrp)) %>% 
+  group_by(year) %>%
+  summarise(price = mean(usd_msrp))
+
+avg_price_per_year %>% 
+  ggplot(aes(x = year, y = price)) +
+    geom_point(size = .5) +
+    geom_line(color = "#444444", size = .5) +
+    labs(x = "Year",
+         y = "Price (USD)",
+         title = "Average Price of Lego sets",
+         subtitle = "Amounts are reported in current USD",
+         caption = "Source: Lego") +
+    theme_minimal()
+```
+<br>
+
+> The average price of lego sets goes up over time.
+
+### Pieces per year
+Next, let’s look at how the number of pieces per set has changed over time. Because Duplo sets are much smaller (since they’re designed for toddlers), we’ll make a special indicator variable for them.
+```{r}
+pieces_per_year <- legosets %>% 
+  filter(year >= 1986) %>% 
+  filter(!is.na(pieces)) %>%
+  mutate(duplo = ifelse(theme == "Duplo", "Duplo", "Lego")) %>% 
+  group_by(year, duplo) %>%
+  summarise(pieces = mean(pieces),
+            num_sets = n()) %>% 
+  arrange(year)
+
+pieces_per_year %>% 
+  ggplot(aes(x = year, y = pieces)) +
+    geom_point(size = .5) +
+    geom_line(color = "#444444", size = .5) +
+    facet_wrap(~duplo) +
+    labs(x = "Year",
+         y = "Pieces",
+         title = "Average Pieces of Lego sets",
+         caption = "Source: Lego") +
+    theme_minimal()
+```
+<br>
+
+> Duplo sets hover around 5 to 50 pieces per set with a slow increase in the number of pieces over time. All non Duplo sets have seen an increase in the average number of pieces per set over time
+
+### LEGO set themes
+In the 1990s, [LEGO began partnering with famous brands and franchises](https://www.cnbc.com/2018/04/27/lego-marketing-strategy-made-it-world-favorite-toy-brand.html) to boost its own sales. First, let's see how many different "themes" LEGO now offers:
+```{r}
+legosets %>% 
+  distinct(theme)
+
+theme_counts <- legosets %>% 
+  count(theme, sort = TRUE) %>% 
+  mutate(theme = fct_inorder(theme, ordered = TRUE))
+
+theme_counts %>% 
+  filter(n > 150) %>% 
+  ggplot(aes(x = theme, y = n)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = NULL,
+       y = "Number of Sets")  
+
+theme_counts %>% 
+  filter(n > 150) %>% 
+  ggplot(aes(x = n, y = fct_rev(theme))) +
+  geom_barh(stat = "identity") +
+  labs(x = "Number of Sets",
+       y = NULL) 
+```
+<br>
+
+> Duplo has the most number of sets followed by Star Wars, Town, and Coleectable Minifigures.
+
